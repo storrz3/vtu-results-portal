@@ -157,7 +157,7 @@ return (
                 <div className="w-2 h-2 bg-blue-600 rounded-full" />
               </div>
               <div className="text-sm text-blue-800">
-                <p className="mb-1 font-extrabold font-serif">Important Information</p>
+                <p className="mb-1 font-extrabold font-serif">{"DISCLAIMER :"}</p>
                 <ul className="space-y-1 text-blue-700">
                   <li className="font-semibold font-sans"> ➲ All rights and data are the property of Visvesvaraya Technological University.           </li>
                   <li className="font-semibold font-sans"> ➲ No security protocols were violated; all CAPTCHAs were solved manually without automation (Trust me  Bro).                                  </li>
@@ -183,7 +183,7 @@ return (
 
         {/* Copyright */}
         <p className="text-xs text-indigo-100 py-1 -mt-1">
-          © 2024 Visvesvaraya Technological University. All rights reserved.
+          © 2025 Visvesvaraya Technological University. All rights reserved.
         </p>
       </footer>
     </div>
