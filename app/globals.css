@@ -35,16 +35,8 @@
     --chart-4: 43 74% 66%;
     --chart-5: 27 87% 67%;
     --radius: 0.5rem;
-    --sidebar-background: 0 0% 98%;
-    --sidebar-foreground: 240 5.3% 26.1%;
-    --sidebar-primary: 240 5.9% 10%;
-    --sidebar-primary-foreground: 0 0% 98%;
-    --sidebar-accent: 240 4.8% 95.9%;
-    --sidebar-accent-foreground: 240 5.9% 10%;
-    --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
-    --hover-duration: 200ms;
   }
+
   .dark {
     --background: 0 0% 3.9%;
     --foreground: 0 0% 98%;
@@ -70,28 +62,24 @@
     --chart-3: 30 80% 55%;
     --chart-4: 280 65% 60%;
     --chart-5: 340 75% 55%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
-    --hover-duration: 200ms;
   }
 }
 
 @layer base {
   * {
-    @apply border-border;
+    border-color: hsl(var(--border));
   }
   body {
-    @apply bg-background text-foreground;
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
   }
   /* Links */
   a {
-    @apply motion-safe:transition-all motion-safe:duration-200 motion-safe:ease-out hover:opacity-90;
+    transition: all 200ms ease-out;
+    opacity: 1;
+    &:hover {
+      opacity: 0.9;
+    }
   }
 
   /* Buttons (native, shadcn, and role-button) */
@@ -99,41 +87,66 @@
   [type="button"],
   [type="submit"],
   [role="button"] {
-    @apply motion-safe:transition-all motion-safe:duration-200 motion-safe:ease-out;
+    transition: all 200ms ease-out;
   }
   button:hover,
   [type="button"]:hover,
   [type="submit"]:hover,
   [role="button"]:hover {
-    @apply hover:-translate-y-0.5 hover:shadow-md;
+    transform: translateY(-0.5px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
   }
 
   /* Form fields */
   input,
   select,
   textarea {
-    @apply motion-safe:transition-all motion-safe:duration-200 focus:ring-2 focus:ring-blue-500 focus:border-blue-500;
+    transition: all 200ms;
+    outline: none;
+    &:focus {
+      border-color: blue;
+      box-shadow: 0 0 0 2px blue;
+    }
   }
 }
 
 @layer components {
   /* Reusable helpers to opt-in components */
   .interactive {
-    @apply motion-safe:transition-all motion-safe:duration-200 motion-safe:ease-out;
+    transition: all 200ms ease-out;
   }
   .card {
-    @apply motion-safe:transition-shadow motion-safe:duration-200 hover:shadow-xl;
+    transition: box-shadow 200ms;
+    &:hover {
+      box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+    }
   }
   .radio-tile {
-    @apply motion-safe:transition-colors motion-safe:duration-200 hover:bg-gray-50;
+    transition: colors 200ms;
+    &:hover {
+      background-color: #f9fafb;
+    }
   }
   .badge-hover {
-    @apply motion-safe:transition-colors motion-safe:duration-200 hover:brightness-110;
+    transition: colors 200ms;
+    &:hover {
+      filter: brightness(1.1);
+    }
   }
   .link-hover {
-    @apply underline decoration-transparent underline-offset-4 motion-safe:transition-[text-decoration-color,opacity] motion-safe:duration-200 hover:decoration-current hover:opacity-90;
+    text-decoration: underline;
+    text-decoration-color: transparent;
+    text-underline-offset: 4px;
+    transition: text-decoration-color, opacity 200ms;
+    &:hover {
+      text-decoration-color: currentColor;
+      opacity: 0.9;
+    }
   }
   .table-hover tbody tr {
-    @apply motion-safe:transition-colors motion-safe:duration-200 hover:bg-gray-50;
+    transition: colors 200ms;
+    &:hover {
+      background-color: #f9fafb;
+    }
   }
 }
