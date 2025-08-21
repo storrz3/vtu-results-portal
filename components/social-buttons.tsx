@@ -3,7 +3,7 @@
 import type React from "react"
 
 import Link from "next/link"
-import { Instagram, MailIcon, Linkedin } from "lucide-react"
+import { Instagram, MailIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { usePathname } from "next/navigation"
 import { useState } from "react"
@@ -82,32 +82,6 @@ export default function SocialButtons({
         />
         <Instagram
           className="relative z-10 h-5 w-5 sm:h-6 sm:w-6 md:h-7 md:w-7 text-[#e1306c] motion-safe:transition-all motion-safe:duration-300 group-hover:text-white group-hover:scale-110"
-          aria-hidden="true"
-        />
-      </Link>
-
-      {/* LinkedIn - Enhanced Responsive */}
-      <Link
-        href="https://www.linkedin.com/in/tabrez-ahamed"
-        target="_blank"
-        rel="noopener noreferrer"
-        aria-label="Open LinkedIn"
-        className={cn(
-          "group relative inline-flex items-center justify-center",
-          "w-11 h-11 sm:w-12 sm:h-12 md:w-14 md:h-14 rounded-[28%] bg-white shadow-lg ring-1 ring-black/5",
-          "overflow-hidden motion-safe:transition-all motion-safe:duration-300 motion-safe:ease-out hover:scale-110 active:scale-95 hover:shadow-xl",
-          "touch-manipulation min-h-[44px] min-w-[44px] hover:-translate-y-1",
-        )}
-      >
-        <span
-          className={cn(
-            "pointer-events-none absolute w-[120%] h-[120%] -left-[110%] top-[90%] rotate-45 bg-[#0077b5]",
-            `motion-safe:transition-all motion-safe:duration-500 motion-safe:ease-${EASE}`,
-            "group-hover:-left-[10%] group-hover:-top-[10%]",
-          )}
-        />
-        <Linkedin
-          className="relative z-10 h-5 w-5 sm:h-6 sm:w-6 md:h-7 md:w-7 text-[#0077b5] motion-safe:transition-all motion-safe:duration-300 group-hover:text-white group-hover:scale-110"
           aria-hidden="true"
         />
       </Link>

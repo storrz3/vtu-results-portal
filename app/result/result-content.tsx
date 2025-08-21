@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { ArrowLeft, User, Hash, CalendarDays, BookOpen, Award, ExternalLink } from "lucide-react"
+import { ArrowLeft, XCircle, User, Hash, CalendarDays, BookOpen, Award, ExternalLink } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { useEffect, useState } from "react"
@@ -112,9 +112,9 @@ export default function ResultContent({
       case "D":
         return "bg-orange-500"
       case "E":
-        return "bg-red-500"
+        return "bg-red-400"
       default:
-        return "bg-red-600"
+        return "bg-red-500"
     }
   }
 
@@ -171,7 +171,7 @@ export default function ResultContent({
                     <CalendarDays className="h-4 w-4" />
                     <span>Examination</span>
                   </div>
-                  <p className="text-lg sm:text-xl font-semibold leading-tight">JULY-2025 </p>
+                  <p className="text-lg sm:text-xl font-semibold leading-tight">JULY-2025  </p>
                 </div>
 
                 <div className="space-y-2">
@@ -262,12 +262,10 @@ export default function ResultContent({
                               <div className="text-sm text-blue-600 font-mono font-bold mb-1 tracking-wide">
                                 {subject.code}
                               </div>
-                              <div className="font-medium text-blue-600 text-sm leading-tight uppercase">
-                                {subject.subject}
-                              </div>
+                              <div className="font-semibold text-gray-900 text-sm leading-tight">{subject.subject}</div>
                             </div>
                             <div className="text-right">
-                              <div className="text-2xl font-bold text-gray-900 tabular-nums">{subject.marks}</div>
+                              <div className="text-2xl font-extrabold text-gray-900 tabular-nums">{subject.marks}</div>
                             </div>
                           </div>
                           <div className="flex items-center justify-between">
@@ -279,30 +277,14 @@ export default function ResultContent({
                               </span>
                             </div>
                             <div
-                              className={`flex items-center gap-1 font-medium ${subject.status === "Pass" ? "text-green-600" : "text-red-600"}`}
+                              className={`flex items-center gap-1 font-semibold ${subject.status === "Pass" ? "text-green-600" : "text-red-600"}`}
                             >
                               {subject.status === "Pass" ? (
-                                <div className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center">
-                                  <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
-                                    <path
-                                      fillRule="evenodd"
-                                      d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                                      clipRule="evenodd"
-                                    />
-                                  </svg>
-                                </div>
+                                <XCircle className="h-4 w-4" />
                               ) : (
-                                <div className="w-5 h-5 bg-red-500 rounded-full flex items-center justify-center">
-                                  <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
-                                    <path
-                                      fillRule="evenodd"
-                                      d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
-                                      clipRule="evenodd"
-                                    />
-                                  </svg>
-                                </div>
+                                <XCircle className="h-4 w-4" />
                               )}
-                              <span className="text-sm font-medium">{subject.status}</span>
+                              <span className="text-sm">{subject.status}</span>
                             </div>
                           </div>
                         </div>
@@ -338,13 +320,13 @@ export default function ResultContent({
                             key={`${subject.code}-${index}`}
                             className="hover:bg-gray-50 transition-colors duration-200"
                           >
-                            <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-blue-600 tracking-wide">
+                            <td className="px-6 py-4 whitespace-nowrap text-sm font-mono font-bold text-blue-600 tracking-wide">
                               {subject.code}
                             </td>
-                            <td className="px-6 py-4 text-sm text-blue-600 font-medium leading-tight uppercase">
+                            <td className="px-6 py-4 text-sm text-blue-600 font-semibold leading-tight">
                               {subject.subject}
                             </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-right text-xl font-bold text-gray-900 tabular-nums">
+                            <td className="px-6 py-4 whitespace-nowrap text-right text-lg font-extrabold text-gray-900 tabular-nums">
                               {subject.marks}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-center">
@@ -356,30 +338,14 @@ export default function ResultContent({
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-center">
                               <div
-                                className={`flex items-center justify-center gap-2 font-medium ${subject.status === "Pass" ? "text-green-600" : "text-red-600"}`}
+                                className={`flex items-center justify-center gap-2 font-semibold ${subject.status === "Pass" ? "text-green-600" : "text-red-600"}`}
                               >
                                 {subject.status === "Pass" ? (
-                                  <div className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center">
-                                    <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
-                                      <path
-                                        fillRule="evenodd"
-                                        d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                                        clipRule="evenodd"
-                                      />
-                                    </svg>
-                                  </div>
+                                  <XCircle className="h-4 w-4" />
                                 ) : (
-                                  <div className="w-5 h-5 bg-red-500 rounded-full flex items-center justify-center">
-                                    <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
-                                      <path
-                                        fillRule="evenodd"
-                                        d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
-                                        clipRule="evenodd"
-                                      />
-                                    </svg>
-                                  </div>
+                                  <XCircle className="h-4 w-4" />
                                 )}
-                                <span className="text-sm font-medium">{subject.status}</span>
+                                <span className="text-sm">{subject.status}</span>
                               </div>
                             </td>
                           </tr>
@@ -388,19 +354,17 @@ export default function ResultContent({
                     </table>
                   </div>
 
-                  {/* Footer Stats - Updated to match the design */}
-                  <div className="px-6 py-4 bg-gray-50 border-t">
-                    <div className="flex flex-col sm:flex-row sm:justify-between gap-4 text-sm text-gray-600 font-medium">
-                      <span>
-                        Total Subjects: <strong className="text-gray-900 font-bold">{totalSubjects}</strong>
-                      </span>
-                      <span>
-                        Aggregate Marks: <strong className="text-gray-900 font-bold">{aggregateMarks}</strong>
-                      </span>
-                      <span>
-                        Total Marks: <strong className="text-gray-900 font-bold">{student.totalMarks}</strong>
-                      </span>
-                    </div>
+                  {/* Footer Stats */}
+                  <div className="px-6 py-4 bg-gray-50 border-t flex flex-col sm:flex-row sm:justify-between gap-2 text-sm text-gray-600 font-medium">
+                    <span>
+                      Total Subjects: <strong className="text-gray-900 font-bold">{totalSubjects}</strong>
+                    </span>
+                    <span>
+                      Aggregate Marks: <strong className="text-gray-900 font-bold">{aggregateMarks}</strong>
+                    </span>
+                    <span>
+                      Total Marks: <strong className="text-gray-900 font-bold">{student.totalMarks}</strong>
+                    </span>
                   </div>
                 </>
               )}
