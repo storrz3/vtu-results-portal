@@ -5,7 +5,7 @@ export type Student = {
   percentage: number
   sgpa: number
   subjects: Subject[]
-  class?: string
+  section?: string
   classRank?: number
   collegeRank?: number
   pdfLink?: string
@@ -19,121 +19,440 @@ export type Subject = {
   status: "Pass" | "Fail"
 }
 
-// Subject code to name mapping based on official VTU curriculum
+export type SearchResult = {
+  student: Student
+  matchType: "exact_usn" | "exact_name" | "partial_name"
+  similarity: number
+}
+
+export type SearchSuggestion = {
+  usn: string
+  name: string
+  similarity: number
+  matchType: "partial_name" | "fuzzy_name"
+}
+
+// Subject code to name mapping
 const SUBJECT_NAMES: Record<string, string> = {
-  // 1st Semester VTU Subjects (Official Names)
-  BMATS101: "MATHEMATICS FOR CSE STREAM-1",
-  BPHYS102: "PHYSICS FOR CSE STREAM",
-  BPOPS103: "PRINCIPLES OF PROGRAMMING USING C",
-  BENGK106: "COMMUNICATIVE ENGLISH",
-  BKSKK107: "SAMSKRUTIKA KANNADA",
-  BKBKK107: "SAMSKRUTIKA KANNADA", // Alternative code
-  BSFHK158: "SCIENTIFIC FOUNDATIONS OF HEALTH",
-  BESCK104B: "INTRODUCTION TO ELECTRONICS ENGINEERING", // Alternative code
-  BESCK104C: "INTRODUCTION TO ELECTRONICS ENGINEERING",
-  BETCK105H: "INTRODUCTION TO INTERNET OF THINGS (IOT)",
+BMATS201: "MATHEMATICS-II FOR CSE STREAM",
+BMATE201: "MATHEMATICS-II FOR EES",
+BMATM201: "MATHEMATICS-II FOR MECHANICAL ENGG STREAM",
+BMATC201: "MATHEMATICS-II FOR CIVIL ENGG STREAM",
+
+BCHES202: "APPLIED CHEMISTRY FOR CSE STREAM",
+BPHYS202: "APPLIED PHYSICS FOR CSE STREAM",
+BPHYE202: "APPLIED PHYSICS FOR EES",
+BPHYM202: "APPLIED PHYSICS FOR ME STREAMS",
+BPHYC202: "APPLIED PHYSICS FOR CIVIL ENGG STREAM",
+
+BCEDK203: "COMPUTER-AIDED ENGINEERING DRAWING",
+BBEE203: "BASIC ELECTRONICS",
+BEEE203: "ELEMENT OF ELECTRICAL ENGINEERING",
+BEMEM203: "ELEMENTS OF MECHANICAL ENGINEERING",
+BCIVC203: "ENGINEERING MECHANICS",
+BPOPS203: "PRINCIPLES OF PROGRAMMING USING C",
+
+BPWSK206: "PROFESSIONAL WRITING SKILLS IN ENGLISH",
+BICOK207: "INDIAN CONSTITUTION",
+BKSKK207: "SAMSKRUTIKA KANNADA",
+BKBKK207:  "BALAKE KANNADA",
+BIDTK258: "INNOVATION AND DESIGN THINKING",
+BSFHK258: "SCIENTIFIC FOUNDATIONS OF HEALTH",
+
+BESCK204B: "INTRODUCTION TO ELECTRICAL ENGINEERING",
+BESCK204C: "INTRODUCTION TO ELECTRONICS COMMUNICATION",
+
+BPLCK205A: "INTRODUCTION TO WEB PROGRAMMING",
+BPLCK205B: "INTRODUCTION TO PYTHON PROGRAMMING",
+BPLCK205D: "INTRODUCTION TO C++ PROGRAMMING",
+
 }
 
-// VTU Grade calculation based on marks
+// SIMPLIFIED: String similarity functions (avoiding complex matrix operations)
+function calculateSimpleSimilarity(str1: string, str2: string): number {
+  const s1 = str1.toLowerCase().trim()
+  const s2 = str2.toLowerCase().trim()
+  
+  // Exact match
+  if (s1 === s2) return 1.0
+  
+  // Calculate overlap ratio
+  const longer = s1.length > s2.length ? s1 : s2
+  const shorter = s1.length <= s2.length ? s1 : s2
+  
+  if (longer.length === 0) return 1.0
+  
+  // Count common substrings
+  let commonChars = 0
+  for (let i = 0; i < shorter.length; i++) {
+    if (longer.includes(shorter[i])) {
+      commonChars++
+    }
+  }
+  
+  return commonChars / longer.length
+}
+
+function containsPartialMatch(fullName: string, searchTerm: string): boolean {
+  const nameWords = fullName.toLowerCase().split(/\s+/)
+  const searchWords = searchTerm.toLowerCase().split(/\s+/)
+  
+  // Check if all search words can be found in name words (partial match)
+  return searchWords.every(searchWord => 
+    nameWords.some(nameWord => 
+      nameWord.includes(searchWord) || 
+      searchWord.includes(nameWord) ||
+      nameWord.startsWith(searchWord) ||
+      searchWord.startsWith(nameWord)
+    )
+  )
+}
+
+function calculatePartialSimilarity(fullName: string, searchTerm: string): number {
+  const nameWords = fullName.toLowerCase().split(/\s+/)
+  const searchWords = searchTerm.toLowerCase().split(/\s+/)
+  
+  let totalSimilarity = 0
+  let matches = 0
+  
+  for (const searchWord of searchWords) {
+    let bestMatch = 0
+    for (const nameWord of nameWords) {
+      // Simple similarity calculation
+      const similarity = calculateSimpleSimilarity(searchWord, nameWord)
+      bestMatch = Math.max(bestMatch, similarity)
+      
+      // Bonus for partial contains
+      if (nameWord.includes(searchWord) || searchWord.includes(nameWord)) {
+        bestMatch = Math.max(bestMatch, 0.7)
+      }
+      
+      // Bonus for starts with
+      if (nameWord.startsWith(searchWord) || searchWord.startsWith(nameWord)) {
+        bestMatch = Math.max(bestMatch, 0.8)
+      }
+    }
+    totalSimilarity += bestMatch
+    matches++
+  }
+  
+  return matches > 0 ? totalSimilarity / matches : 0
+}
+
 function calculateGrade(marks: number): string {
-  if (marks >= 90) return "S" // Outstanding (90-100)
-  if (marks >= 80) return "A" // Excellent (80-89)
-  if (marks >= 70) return "B" // Very Good (70-79)
-  if (marks >= 60) return "C" // Good (60-69)
-  if (marks >= 50) return "D" // Above Average (50-59)
-  if (marks >= 40) return "E" // Average (40-49)
-  return "F" // Fail (Below 40)
+  if (marks >= 90) return "S"
+  if (marks >= 80) return "A"
+  if (marks >= 70) return "B"
+  if (marks >= 60) return "C"
+  if (marks >= 50) return "D"
+  if (marks >= 40) return "E"
+  return "F"
 }
 
-// Static student data from your attachment
-const studentsData: Student[] = [
-  {
-    usn: "3VC24CD001",
-    fullName: "A SAKSHI",
-    totalMarks: 573,
-    percentage: 71.62,
-    sgpa: 7.55,
-    class: "A",
-    classRank: 1,
-    collegeRank: 1,
-    subjects: [
-      { code: "BMATS101", subject: SUBJECT_NAMES["BMATS101"], marks: 76, grade: calculateGrade(76), status: "Pass" },
-      { code: "BPHYS102", subject: SUBJECT_NAMES["BPHYS102"], marks: 69, grade: calculateGrade(69), status: "Pass" },
-      { code: "BPOPS103", subject: SUBJECT_NAMES["BPOPS103"], marks: 83, grade: calculateGrade(83), status: "Pass" },
-      { code: "BENGK106", subject: SUBJECT_NAMES["BENGK106"], marks: 59, grade: calculateGrade(59), status: "Pass" },
-      { code: "BKBKK107", subject: SUBJECT_NAMES["BKBKK107"], marks: 96, grade: calculateGrade(96), status: "Pass" },
-      { code: "BSFHK158", subject: SUBJECT_NAMES["BSFHK158"], marks: 57, grade: calculateGrade(57), status: "Pass" },
-      { code: "BESCK104C", subject: SUBJECT_NAMES["BESCK104C"], marks: 68, grade: calculateGrade(68), status: "Pass" },
-      { code: "BETCK105H", subject: SUBJECT_NAMES["BETCK105H"], marks: 65, grade: calculateGrade(65), status: "Pass" },
-    ],
-    pdfLink: "https://drive.google.com/file/d/1taBEiAw5GtBIKfNTIx-Dw_Xw1d9RlaTa/view?usp=drivesdk",
-  },
-  {
-    usn: "3VC24CD002",
-    fullName: "ADITHYA PRAKASH R",
-    totalMarks: 435,
-    percentage: 54.37,
-    sgpa: 5.4,
-    class: "A",
-    classRank: 4,
-    collegeRank: 4,
-    subjects: [
-      { code: "BMATS101", subject: SUBJECT_NAMES["BMATS101"], marks: 48, grade: calculateGrade(48), status: "Fail" },
-      { code: "BPHYS102", subject: SUBJECT_NAMES["BPHYS102"], marks: 63, grade: calculateGrade(63), status: "Pass" },
-      { code: "BPOPS103", subject: SUBJECT_NAMES["BPOPS103"], marks: 49, grade: calculateGrade(49), status: "Fail" },
-      { code: "BENGK106", subject: SUBJECT_NAMES["BENGK106"], marks: 60, grade: calculateGrade(60), status: "Pass" },
-      { code: "BKSKK107", subject: SUBJECT_NAMES["BKSKK107"], marks: 64, grade: calculateGrade(64), status: "Pass" },
-      { code: "BSFHK158", subject: SUBJECT_NAMES["BSFHK158"], marks: 50, grade: calculateGrade(50), status: "Pass" },
-      { code: "BESCK104B", subject: SUBJECT_NAMES["BESCK104B"], marks: 41, grade: calculateGrade(41), status: "Fail" },
-      { code: "BETCK105H", subject: SUBJECT_NAMES["BETCK105H"], marks: 60, grade: calculateGrade(60), status: "Fail" },
-    ],
-    pdfLink: "https://drive.google.com/file/d/1xzGnpNn-ZDZoIn7vB32as6_oz_duVrNg/view?usp=drivesdk",
-  },
-  {
-    usn: "3VC24CD003",
-    fullName: "AKSHAY KUMAR U",
-    totalMarks: 504,
-    percentage: 63.0,
-    sgpa: 6.8,
-    class: "A",
-    classRank: 3,
-    collegeRank: 3,
-    subjects: [
-      { code: "BMATS101", subject: SUBJECT_NAMES["BMATS101"], marks: 67, grade: calculateGrade(67), status: "Pass" },
-      { code: "BPHYS102", subject: SUBJECT_NAMES["BPHYS102"], marks: 62, grade: calculateGrade(62), status: "Pass" },
-      { code: "BPOPS103", subject: SUBJECT_NAMES["BPOPS103"], marks: 61, grade: calculateGrade(61), status: "Fail" },
-      { code: "BENGK106", subject: SUBJECT_NAMES["BENGK106"], marks: 62, grade: calculateGrade(62), status: "Pass" },
-      { code: "BKSKK107", subject: SUBJECT_NAMES["BKSKK107"], marks: 83, grade: calculateGrade(83), status: "Pass" },
-      { code: "BSFHK158", subject: SUBJECT_NAMES["BSFHK158"], marks: 49, grade: calculateGrade(49), status: "Pass" },
-      { code: "BESCK104B", subject: SUBJECT_NAMES["BESCK104B"], marks: 63, grade: calculateGrade(63), status: "Pass" },
-      { code: "BETCK105H", subject: SUBJECT_NAMES["BETCK105H"], marks: 57, grade: calculateGrade(57), status: "Pass" },
-    ],
-    pdfLink: "https://drive.google.com/file/d/1qDCXOmKvZTksM8hYGoSF55X-GI7l-4Ly/view?usp=drivesdk",
-  },
-  {
-    usn: "3VC24CD004",
-    fullName: "B AKHILA",
-    totalMarks: 508,
-    percentage: 63.5,
-    sgpa: 6.8,
-    class: "A",
-    classRank: 2,
-    collegeRank: 2,
-    subjects: [
-      { code: "BMATS101", subject: SUBJECT_NAMES["BMATS101"], marks: 51, grade: calculateGrade(51), status: "Fail" },
-      { code: "BPHYS102", subject: SUBJECT_NAMES["BPHYS102"], marks: 74, grade: calculateGrade(74), status: "Pass" },
-      { code: "BPOPS103", subject: SUBJECT_NAMES["BPOPS103"], marks: 64, grade: calculateGrade(64), status: "Pass" },
-      { code: "BENGK106", subject: SUBJECT_NAMES["BENGK106"], marks: 63, grade: calculateGrade(63), status: "Pass" },
-      { code: "BKSKK107", subject: SUBJECT_NAMES["BKSKK107"], marks: 60, grade: calculateGrade(60), status: "Pass" },
-      { code: "BSFHK158", subject: SUBJECT_NAMES["BSFHK158"], marks: 69, grade: calculateGrade(69), status: "Pass" },
-      { code: "BESCK104B", subject: SUBJECT_NAMES["BESCK104B"], marks: 61, grade: calculateGrade(61), status: "Pass" },
-      { code: "BETCK105H", subject: SUBJECT_NAMES["BETCK105H"], marks: 66, grade: calculateGrade(66), status: "Pass" },
-    ],
-    pdfLink: "https://drive.google.com/file/d/1kGPJmQqFiCdkRpbBtotp0kPfwXaH3ahl/view?usp=drivesdk",
-  },
-]
+function parseSubjectString(subjectStr: string): Subject | null {
+  if (!subjectStr || subjectStr.trim() === "") return null
 
-// Helper functions
+  let trimmed = subjectStr.trim()
+
+  if (trimmed.includes(',')) {
+    const firstPart = trimmed.split(',')[0].trim()
+    trimmed = firstPart
+  }
+
+  const regex = /^([A-Z0-9]+):(\d+)\s*\(([PF])\)$/
+  const match = trimmed.match(regex)
+
+  if (match) {
+    const code = match[1]
+    const marksStr = match[2]
+    const statusChar = match[3]
+
+    const marks = parseInt(marksStr, 10)
+    if (isNaN(marks)) {
+      return null
+    }
+
+    const status: "Pass" | "Fail" = statusChar === "P" ? "Pass" : "Fail"
+    const grade = calculateGrade(marks)
+
+    return {
+      code,
+      subject: SUBJECT_NAMES[code] || code,
+      marks,
+      grade,
+      status,
+    }
+  }
+
+  return null
+}
+
+function parseCSVLine(line: string): string[] {
+  const values: string[] = []
+  let current = ""
+  let inQuotes = false
+
+  for (let i = 0; i < line.length; i++) {
+    const char = line[i]
+    if (char === '"') {
+      if (inQuotes && line[i + 1] === '"') {
+        current += '"'
+        i++
+      } else {
+        inQuotes = !inQuotes
+      }
+    } else if (char === "," && !inQuotes) {
+      values.push(current)
+      current = ""
+    } else {
+      current += char
+    }
+  }
+  values.push(current)
+  return values
+}
+
+function parseStudentFromRecord(record: any): Student {
+  const subjects: Subject[] = []
+  for (let j = 1; j <= 8; j++) {
+    const subjectKey = `subject${j}`
+    const subjectValue = record[subjectKey]
+
+    if (subjectValue && subjectValue.trim() !== "") {
+      const parsedSubject = parseSubjectString(subjectValue)
+      if (parsedSubject) {
+        subjects.push(parsedSubject)
+      }
+    }
+  }
+
+  return {
+    usn: record.usn || "",
+    fullName: record.name || "",
+    totalMarks: Number.parseInt(record.total_marks, 10) || 0,
+    percentage: Number.parseFloat(record.percentage) || 0,
+    sgpa: Number.parseFloat(record.sgpa) || 0,
+    subjects: subjects,
+    section: record.section || undefined,
+    pdfLink: record.pdf_drive_link || undefined,
+    classRank: record.class_rank ? Number.parseInt(record.class_rank, 10) : undefined,
+    collegeRank: record.college_rank ? Number.parseInt(record.college_rank, 10) : undefined,
+  }
+}
+
+export async function searchStudents(query: string, limit: number = 10): Promise<{
+  exactMatch: Student | null
+  results: SearchResult[]
+  suggestions: SearchSuggestion[]
+}> {
+  if (!query || query.trim() === "") {
+    return { exactMatch: null, results: [], suggestions: [] }
+  }
+
+  console.log("🔍 Enhanced search for:", query)
+
+  try {
+    const csvUrl = "https://7uhlo80bojw9rwm9.public.blob.vercel-storage.com/combined_vtu_results_cleaned.csv"
+    
+    const response = await fetch(csvUrl)
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+    }
+
+    const csvText = await response.text()
+    
+    if (csvText.includes('<!DOCTYPE html>') || csvText.includes('<html')) {
+      throw new Error("Received HTML instead of CSV. Check the URL.")
+    }
+    
+    const lines = csvText.trim().split("\n")
+    const headers = parseCSVLine(lines[0]).map((h) => h.trim().replace(/"/g, ""))
+    
+    const normalizedQuery = query.trim()
+
+    let exactMatch: Student | null = null
+    const results: SearchResult[] = []
+    const suggestions: SearchSuggestion[] = []
+
+    for (let i = 1; i < lines.length; i++) {
+      const values = parseCSVLine(lines[i])
+      const record: any = {}
+      headers.forEach((header, index) => {
+        record[header] = values[index] || ""
+      })
+
+      if (!record.usn || !record.name) continue
+
+      const studentUSN = record.usn.trim()
+      const studentName = record.name.trim()
+
+      // Check for exact USN match
+      if (normalizeUSN(studentUSN) === normalizeUSN(normalizedQuery)) {
+        const student = parseStudentFromRecord(record)
+        exactMatch = student
+        console.log("✅ Exact USN match found:", student.fullName)
+        continue
+      }
+
+      // Check for exact name match
+      if (normalizeName(studentName) === normalizeName(normalizedQuery)) {
+        const student = parseStudentFromRecord(record)
+        if (!exactMatch) {
+          exactMatch = student
+          console.log("✅ Exact name match found:", student.fullName)
+        }
+        continue
+      }
+
+      // Partial name matching with simplified similarity
+      const partialMatch = containsPartialMatch(studentName, normalizedQuery)
+      const similarity = calculatePartialSimilarity(studentName, normalizedQuery)
+
+      if (partialMatch && similarity > 0.2) {
+        const student = parseStudentFromRecord(record)
+        results.push({
+          student,
+          matchType: "partial_name",
+          similarity
+        })
+      } else if (similarity > 0.4) {
+        suggestions.push({
+          usn: studentUSN,
+          name: studentName,
+          similarity,
+          matchType: "fuzzy_name"
+        })
+      }
+    }
+
+    results.sort((a, b) => b.similarity - a.similarity)
+    suggestions.sort((a, b) => b.similarity - a.similarity)
+
+    console.log(`✅ Search completed: ${results.length} results, ${suggestions.length} suggestions`)
+
+    return {
+      exactMatch,
+      results: results.slice(0, limit),
+      suggestions: suggestions.slice(0, limit)
+    }
+
+  } catch (error) {
+    console.error("❌ Error in searchStudents:", error)
+    return { exactMatch: null, results: [], suggestions: [] }
+  }
+}
+
+export async function getSearchSuggestions(query: string, limit: number = 5): Promise<SearchSuggestion[]> {
+  if (!query || query.trim().length < 2) {
+    return []
+  }
+
+  const searchResult = await searchStudents(query, limit)
+  const allSuggestions: SearchSuggestion[] = []
+
+  searchResult.results.forEach(result => {
+    allSuggestions.push({
+      usn: result.student.usn,
+      name: result.student.fullName,
+      similarity: result.similarity,
+      matchType: "partial_name"
+    })
+  })
+
+  allSuggestions.push(...searchResult.suggestions)
+
+  return allSuggestions
+    .sort((a, b) => b.similarity - a.similarity)
+    .slice(0, limit)
+}
+
+export async function findStudentByUSNOrName(usn?: string | null, fullName?: string | null): Promise<Student | null> {
+  const query = usn || fullName || ""
+  
+  if (!query) return null
+
+  console.log("🔍 Finding student with enhanced search:", { usn, fullName })
+
+  const searchResult = await searchStudents(query, 1)
+  
+  if (searchResult.exactMatch) {
+    return searchResult.exactMatch
+  }
+  
+  if (searchResult.results.length > 0) {
+    return searchResult.results[0].student
+  }
+  
+  return null
+}
+
+export async function loadStudentsData(): Promise<Student[]> {
+  try {
+    console.log("🔄 Loading students data...")
+    const csvUrl = "https://7uhlo80bojw9rwm9.public.blob.vercel-storage.com/combined_vtu_results_cleaned.csv"
+
+    const response = await fetch(csvUrl)
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+    }
+
+    const csvText = await response.text()
+
+    if (csvText.includes('<!DOCTYPE html>') || csvText.includes('<html')) {
+      throw new Error("Received HTML instead of CSV. Check the URL.")
+    }
+
+    const lines = csvText.trim().split("\n")
+    const headers = parseCSVLine(lines[0]).map((h) => h.trim().replace(/"/g, ""))
+    const students: Student[] = []
+
+    for (let i = 1; i < lines.length; i++) {
+      const values = parseCSVLine(lines[i])
+      const record: any = {}
+      headers.forEach((header, index) => {
+        record[header] = values[index] || ""
+      })
+
+      if (record.usn && record.name) {
+        const student = parseStudentFromRecord(record)
+        students.push(student)
+      }
+    }
+
+    console.log(`✅ Total students loaded: ${students.length}`)
+    return students
+  } catch (error) {
+    console.error("❌ Error in loadStudentsData:", error)
+    return []
+  }
+}
+
+export function loadStudentsFromText(csvText: string): Student[] {
+  try {
+    const lines = csvText.trim().split("\n")
+    const headers = parseCSVLine(lines[0]).map((h) => h.trim().replace(/"/g, ""))
+    const students: Student[] = []
+
+    for (let i = 1; i < lines.length; i++) {
+      const values = parseCSVLine(lines[i])
+      const record: any = {}
+      headers.forEach((header, index) => {
+        record[header] = values[index] || ""
+      })
+
+      if (record.usn && record.name) {
+        const student = parseStudentFromRecord(record)
+        students.push(student)
+      }
+    }
+
+    return students
+  } catch (error) {
+    console.error("❌ Error in loadStudentsFromText:", error)
+    return []
+  }
+}
+
 export function normalizeUSN(input: string): string {
   return input.trim().toUpperCase()
 }
@@ -142,38 +461,49 @@ export function normalizeName(input: string): string {
   return input.trim().toLowerCase().replace(/\s+/g, " ")
 }
 
-export async function loadStudentsData(): Promise<Student[]> {
-  console.log("Loading static student data...")
-  return studentsData
-}
-
-export async function findStudentByUSNOrName(usn?: string | null, fullName?: string | null): Promise<Student | null> {
-  if (!usn && !fullName) return null
-
-  console.log("Finding student with USN:", usn, "Name:", fullName)
-
-  const students = await loadStudentsData()
-  console.log("Loaded students count:", students.length)
-
-  const nUSN = usn ? normalizeUSN(usn) : null
-  const nName = fullName ? normalizeName(fullName) : null
-
-  for (const student of students) {
-    if (nUSN && normalizeUSN(student.usn) === nUSN) {
-      console.log("Found student by USN:", student)
-      return student
-    }
-    if (nName && normalizeName(student.fullName) === nName) {
-      console.log("Found student by name:", student)
-      return student
-    }
-  }
-
-  console.log("No student found")
-  return null
-}
-
-// Get all students (for admin/testing purposes)
 export async function getAllStudents(): Promise<Student[]> {
   return await loadStudentsData()
+}
+
+export function getStudentsBySection(students: Student[], section: string): Student[] {
+  return students.filter(student => student.section === section)
+}
+
+export function getTopPerformers(students: Student[], count: number = 10): Student[] {
+  return students
+    .sort((a, b) => b.sgpa - a.sgpa)
+    .slice(0, count)
+}
+
+export function getStudentsByGrade(students: Student[], minSGPA: number): Student[] {
+  return students.filter(student => student.sgpa >= minSGPA)
+}
+
+export function getSubjectStatistics(students: Student[], subjectCode: string) {
+  const subjectMarks = students
+    .flatMap(student => student.subjects)
+    .filter(subject => subject.code === subjectCode)
+    .map(subject => subject.marks)
+
+  if (subjectMarks.length === 0) {
+    return null
+  }
+
+  const total = subjectMarks.reduce((sum, marks) => sum + marks, 0)
+  const average = total / subjectMarks.length
+  const highest = Math.max(...subjectMarks)
+  const lowest = Math.min(...subjectMarks)
+  const passCount = subjectMarks.filter(marks => marks >= 40).length
+  const passPercentage = (passCount / subjectMarks.length) * 100
+
+  return {
+    subjectCode,
+    subjectName: SUBJECT_NAMES[subjectCode] || subjectCode,
+    totalStudents: subjectMarks.length,
+    average: Math.round(average * 100) / 100,
+    highest,
+    lowest,
+    passCount,
+    passPercentage: Math.round(passPercentage * 100) / 100
+  }
 }
