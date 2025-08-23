@@ -120,11 +120,16 @@ export default function ResultGate({ searchParams }: Props) {
   }
 
   // Authorized
-  return (
-    <ResultContent
-      format={format}
-      fullName={state.student.fullName}
-      usn={state.student.usn}
-    />
-  )
+  if (state.status === "success") {
+    return (
+      <ResultContent
+        format={format}
+        fullName={state.student.fullName}
+        usn={state.student.usn}
+      />
+    )
+  }
+  
+  // Fallback - should not reach here
+  return null
 }

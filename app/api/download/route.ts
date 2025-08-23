@@ -22,7 +22,7 @@ function parseFields(param: string | null): Array<"subject" | "marks" | "status"
 }
 
 async function gzipIfRequested(
-  body: Uint8Array | string | Blob,
+  body: Uint8Array | string,
   contentType: string,
   filename: string,
   compress: boolean,
@@ -34,7 +34,9 @@ async function gzipIfRequested(
   }
 
   if (compress && typeof CompressionStream !== "undefined") {
-    const stream = (body instanceof Blob ? body : new Blob([body])).stream().pipeThrough(new CompressionStream("gzip"))
+    const bodyBuffer = typeof body === 'string' ? new TextEncoder().encode(body) : Array.from(body)
+    const blob = new Blob([new Uint8Array(bodyBuffer)])
+    const stream = blob.stream().pipeThrough(new CompressionStream("gzip"))
     return new Response(stream, {
       headers: {
         ...headers,
@@ -43,7 +45,9 @@ async function gzipIfRequested(
     })
   }
 
-  return new Response(body, { headers })
+  // For non-compressed responses, convert Uint8Array to Buffer for Response
+  const responseBody = typeof body === 'string' ? body : Buffer.from(body)
+  return new Response(responseBody, { headers })
 }
 
 export async function GET(req: NextRequest) {
@@ -54,7 +58,7 @@ export async function GET(req: NextRequest) {
 
   try {
     // Validate access
-    const student = await findStudentByUSNOrName(usn, fullName)
+    const student = await findStudentByUSNOrName(usn || undefined, fullName || undefined)
     if (!student) {
       return new Response("Forbidden: invalid Name/USN.", { status: 403 })
     }
@@ -76,7 +80,7 @@ export async function GET(req: NextRequest) {
           for (const f of fields) {
             if (f === "subject") {
               parts.push(`"${s.code}"`)
-              if (!compact) parts.push(`"${s.name.replace(/"/g, '""')}"`)
+              if (!compact) parts.push(`"${s.subject.replace(/"/g, '""')}"`)
             }
             if (f === "marks") parts.push(String(s.marks))
             if (f === "status") parts.push(s.status)
@@ -130,7 +134,7 @@ export async function GET(req: NextRequest) {
       }
       const statusText = withStatus ? ` (${s.status})` : ""
       const gradeText = compact ? ` - ${s.marks}` : ` - ${s.marks} (Grade: ${s.grade})`
-      page.drawText(`${s.code}: ${s.name}${gradeText}${statusText}`, {
+      page.drawText(`${s.code}: ${s.subject}${gradeText}${statusText}`, {
         x: 72,
         y,
         size: 11,
