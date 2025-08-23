@@ -1,3 +1,5 @@
+import { STUDENTS_DATA } from './students-data'
+
 export type Student = {
   usn: string
   fullName: string
@@ -245,21 +247,10 @@ export async function loadStudentsData(): Promise<Student[]> {
   }
 
   try {
-    console.log("🔄 Loading students data from source...")
-    const csvUrl = process.env.CSV_DATA_URL || 'https://raw.githubusercontent.com/storrz3/VTU-results-portal/6f88a83b9f7fef0a2c61b81805575a111ad053e3/students.csv';
-
-    const response = await fetch(csvUrl, {
-      cache: 'no-store',
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (compatible; VTU-Results-Portal/1.0)',
-      },
-    });
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`)
-    }
-
-    const csvText = await response.text()
-    const students = loadStudentsFromText(csvText)
+    console.log("🔄 Loading students data from bundled data...")
+    
+    // Convert the imported data to Student objects
+    const students = STUDENTS_DATA.map(record => parseStudentFromRecord(record))
 
     console.log(`✅ Total students loaded and cached: ${students.length}`)
     studentsCache = students // Cache the data
