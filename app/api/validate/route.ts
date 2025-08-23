@@ -1,6 +1,13 @@
 import type { NextRequest } from "next/server"
 import { findStudentByUSNOrName } from "@/data/students"
 
+// Add CORS headers for production
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+}
+
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
   const usn = searchParams.get("usn")
@@ -22,14 +29,23 @@ export async function GET(req: NextRequest) {
           ok: false,
           error: "No matching record found. Please verify your Name or USN and try again.",
         }),
-        { status: 404, headers: { "Content-Type": "application/json" } }, // ✅ Fixed: 404 instead of 403
+        { 
+          status: 404, 
+          headers: { 
+            "Content-Type": "application/json",
+            ...corsHeaders
+          } 
+        },
       )
     }
 
     console.log('Returning 200 - match found')
     return new Response(JSON.stringify({ ok: true, student: match }), {
       status: 200,
-      headers: { "Content-Type": "application/json" },
+      headers: { 
+        "Content-Type": "application/json",
+        ...corsHeaders
+      },
     })
   } catch (error) {
     console.error("API Validation error:", error)
@@ -38,7 +54,21 @@ export async function GET(req: NextRequest) {
         ok: false,
         error: "Server error occurred. Please try again later.",
       }),
-      { status: 500, headers: { "Content-Type": "application/json" } },
+      { 
+        status: 500, 
+        headers: { 
+          "Content-Type": "application/json",
+          ...corsHeaders
+        } 
+      },
     )
   }
+}
+
+// Handle preflight requests
+export async function OPTIONS(req: NextRequest) {
+  return new Response(null, {
+    status: 200,
+    headers: corsHeaders,
+  })
 }

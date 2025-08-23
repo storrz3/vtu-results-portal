@@ -246,6 +246,34 @@ export async function loadStudentsData(): Promise<Student[]> {
 
   try {
     console.log("🔄 Loading students data from source...")
+    
+    // Try to load from local JSON file first (for production)
+    try {
+      const studentsData = await import('./students.json')
+      if (studentsData.default && Array.isArray(studentsData.default)) {
+        console.log(`✅ Loaded students from local JSON: ${studentsData.default.length}`)
+        studentsCache = studentsData.default
+        return studentsCache
+      }
+    } catch (localError) {
+      console.log("Local JSON not found, trying CSV fallback...")
+    }
+
+    // Fallback: Try local CSV file
+    try {
+      const fs = await import('fs/promises')
+      const path = await import('path')
+      const csvPath = path.join(process.cwd(), 'students.csv')
+      const csvText = await fs.readFile(csvPath, 'utf-8')
+      const students = loadStudentsFromText(csvText)
+      console.log(`✅ Loaded students from local CSV: ${students.length}`)
+      studentsCache = students
+      return students
+    } catch (localCsvError) {
+      console.log("Local CSV not found, trying external URL...")
+    }
+
+    // Final fallback: External URL (development/backup)
     const csvUrl = process.env.CSV_DATA_URL || 'https://raw.githubusercontent.com/storrz3/VTU-results-portal/6f88a83b9f7fef0a2c61b81805575a111ad053e3/students.csv';
 
     const response = await fetch(csvUrl, {
@@ -261,7 +289,7 @@ export async function loadStudentsData(): Promise<Student[]> {
     const csvText = await response.text()
     const students = loadStudentsFromText(csvText)
 
-    console.log(`✅ Total students loaded and cached: ${students.length}`)
+    console.log(`✅ Total students loaded from external URL: ${students.length}`)
     studentsCache = students // Cache the data
     return students
   } catch (error) {
