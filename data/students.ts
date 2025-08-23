@@ -246,24 +246,65 @@ export async function loadStudentsData(): Promise<Student[]> {
 
   try {
     console.log("🔄 Loading students data from source...")
-    const csvUrl = process.env.CSV_DATA_URL || 'https://raw.githubusercontent.com/storrz3/VTU-results-portal/6f88a83b9f7fef0a2c61b81805575a111ad053e3/students.csv';
-
-    const response = await fetch(csvUrl, {
-      cache: 'no-store',
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (compatible; VTU-Results-Portal/1.0)',
-      },
-    });
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+    
+    // Check if we're in a Node.js environment (server-side)
+    if (typeof window === 'undefined') {
+      // Server-side: use fs to read local file
+      try {
+        const fs = require('fs')
+        const path = require('path')
+        
+        const csvPath = path.join(process.cwd(), 'students.csv')
+        console.log("📁 Reading local CSV file:", csvPath)
+        
+        // Check if file exists
+        if (!fs.existsSync(csvPath)) {
+          throw new Error(`CSV file not found at: ${csvPath}`)
+        }
+        
+        const csvText = fs.readFileSync(csvPath, 'utf-8')
+        console.log(`📄 CSV file size: ${csvText.length} characters`)
+        
+        const students = loadStudentsFromText(csvText)
+        
+        console.log(`✅ Total students loaded and cached: ${students.length}`)
+        studentsCache = students // Cache the data
+        return students
+      } catch (fsError) {
+        console.error("❌ Error reading local CSV file:", fsError)
+        
+        // Fallback to remote URL if local file reading fails
+        console.log("🔄 Falling back to remote CSV URL...")
+        const csvUrl = 'https://raw.githubusercontent.com/storrz3/VTU-results-portal/6f88a83b9f7fef0a2c61b81805575a111ad053e3/students.csv'
+        
+        const response = await fetch(csvUrl, {
+          cache: 'no-store',
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (compatible; VTU-Results-Portal/1.0)',
+          },
+        })
+        
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+        }
+        
+        const csvText = await response.text()
+        const students = loadStudentsFromText(csvText)
+        
+        console.log(`✅ Total students loaded from remote and cached: ${students.length}`)
+        studentsCache = students
+        return students
+      }
+    } else {
+      // Client-side: fallback to fetch from public endpoint if needed
+      console.log("🌐 Client-side: fetching from API...")
+      const response = await fetch('/api/students')
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+      }
+      const students = await response.json()
+      return students
     }
-
-    const csvText = await response.text()
-    const students = loadStudentsFromText(csvText)
-
-    console.log(`✅ Total students loaded and cached: ${students.length}`)
-    studentsCache = students // Cache the data
-    return students
   } catch (error) {
     console.error("❌ Error in loadStudentsData:", error)
     return []
