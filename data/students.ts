@@ -366,25 +366,64 @@ export async function getSearchSuggestions(query: string, limit: number = 5): Pr
     .slice(0, limit)
 }
 
-export async function findStudentByUSNOrName(usn?: string | null, fullName?: string | null): Promise<Student | null> {
-  const query = usn || fullName || ""
-  
-  if (!query) return null
+// data/students.ts (or wherever your function is located)
 
-  console.log("🔍 Finding student with enhanced search:", { usn, fullName })
-
-  const searchResult = await searchStudents(query, 1)
-  
-  if (searchResult.exactMatch) {
-    return searchResult.exactMatch
+export async function findStudentByUSNOrName(usn?: string, fullName?: string) {
+  try {
+    // Use Google Drive CSV instead of Vercel Blob
+    const CSV_URL = process.env.CSV_DATA_URL || 'https://drive.google.com/uc?export=download&id=1cSZ_S2jbviCcg72FBtIyRrIVJCmKpIQZ';
+    
+    console.log('Fetching CSV from Google Drive...');
+    
+    const response = await fetch(CSV_URL, {
+      cache: 'no-store',
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (compatible; VTU-Results-Portal/1.0)',
+      },
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Failed to fetch CSV: ${response.status}`);
+    }
+    
+    const csvText = await response.text();
+    console.log('CSV fetched successfully, size:', csvText.length);
+    
+    // Parse CSV manually (adjust based on your CSV structure)
+    const lines = csvText.split('\n');
+    const headers = lines[0].split(',').map(h => h.trim());
+    
+    const students = lines.slice(1).map(line => {
+      const values = line.split(',');
+      const student: any = {};
+      headers.forEach((header, index) => {
+        student[header] = values[index]?.trim();
+      });
+      return student;
+    }).filter(student => student.usn && student.usn.trim()); // Remove empty rows
+    
+    console.log('Students parsed:', students.length);
+    
+    // Search logic (adjust field names to match your CSV)
+    const match = students.find((student: any) => {
+      if (usn && student.usn?.toLowerCase() === usn.toLowerCase()) {
+        return true;
+      }
+      if (fullName && student.fullName?.toLowerCase().includes(fullName.toLowerCase())) {
+        return true;
+      }
+      return false;
+    });
+    
+    console.log('Search result:', match ? 'FOUND' : 'NOT_FOUND');
+    return match;
+    
+  } catch (error) {
+    console.error('Error fetching CSV from Google Drive:', error);
+    throw error;
   }
-  
-  if (searchResult.results.length > 0) {
-    return searchResult.results[0].student
-  }
-  
-  return null
 }
+
 
 export async function loadStudentsData(): Promise<Student[]> {
   try {
