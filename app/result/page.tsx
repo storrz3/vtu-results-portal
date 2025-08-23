@@ -6,6 +6,11 @@ type SearchParams = {
   usn?: string
 }
 
-export default function ResultPage({ searchParams }: { searchParams: SearchParams }) {
-  return <ResultGate searchParams={searchParams} />
+export default async function ResultPage({
+  searchParams,
+}: {
+  searchParams: Promise<SearchParams>
+}) {
+  const { format, fullName, usn } = await searchParams
+  return <ResultGate searchParams={{ format, fullName, usn }} />
 }

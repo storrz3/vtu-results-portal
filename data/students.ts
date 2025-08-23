@@ -157,9 +157,9 @@ function parseSubjectString(subjectStr: string): Subject | null {
   const match = trimmed.match(regex)
 
   if (match) {
-    const code = match[10]
-    const marksStr = match[11]
-    const statusChar = match[12]
+    const code = match[1]
+    const marksStr = match[2]
+    const statusChar = match[3]
 
     const marks = parseInt(marksStr, 10)
     if (isNaN(marks)) {
@@ -234,78 +234,99 @@ function parseStudentFromRecord(record: any): Student {
   }
 }
 
-// ✅ FIXED: Single unified function using Google Drive CSV
-export async function findStudentByUSNOrName(usn?: string, fullName?: string): Promise<Student | null> {
+// In-memory cache for student data to avoid re-fetching on every request.
+let studentsCache: Student[] | null = null
+
+// Centralized data loader with caching
+export async function loadStudentsData(): Promise<Student[]> {
+  if (studentsCache) {
+    console.log("✅ Returning data from cache...")
+    return studentsCache
+  }
+
   try {
-    // Use Google Drive CSV instead of Vercel Blob
-    const CSV_URL = process.env.CSV_DATA_URL || 'https://drive.google.com/uc?export=download&id=1cSZ_S2jbviCcg72FBtIyRrIVJCmKpIQZ';
-    
-    console.log('Fetching CSV from Google Drive...');
-    
-    const response = await fetch(CSV_URL, {
+    console.log("🔄 Loading students data from source...")
+    const csvUrl = process.env.CSV_DATA_URL || 'https://raw.githubusercontent.com/storrz3/VTU-results-portal/6f88a83b9f7fef0a2c61b81805575a111ad053e3/students.csv';
+
+    const response = await fetch(csvUrl, {
       cache: 'no-store',
       headers: {
         'User-Agent': 'Mozilla/5.0 (compatible; VTU-Results-Portal/1.0)',
       },
     });
-    
     if (!response.ok) {
-      throw new Error(`Failed to fetch CSV: ${response.status} ${response.statusText}`);
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+    }
+
+    const csvText = await response.text()
+    const students = loadStudentsFromText(csvText)
+
+    console.log(`✅ Total students loaded and cached: ${students.length}`)
+    studentsCache = students // Cache the data
+    return students
+  } catch (error) {
+    console.error("❌ Error in loadStudentsData:", error)
+    return []
+  }
+}
+
+// ✅ REFACTORED: Use cached data loader
+export async function findStudentByUSNOrName(usn?: string, fullName?: string): Promise<Student | null> {
+  try {
+    const students = await loadStudentsData()
+
+    // Normalize inputs once
+    const wantedUSN = usn ? normalizeUSN(usn) : undefined
+    const wantedName = fullName ? normalizeName(fullName) : undefined
+
+    // Track best partial for name-only queries
+    let bestPartial: { student: Student; similarity: number } | null = null
+
+    for (const student of students) {
+      // Strict USN flow: if a USN is provided, only accept an exact USN match.
+      if (wantedUSN) {
+        if (student.usn === wantedUSN) {
+          console.log('✅ Found exact USN match:', student.fullName);
+          return student;
+        }
+        continue; // Do not consider name matches if USN is provided
+      }
+
+      // Name-only flow
+      if (wantedName) {
+        // Prefer exact name match
+        if (normalizeName(student.fullName) === wantedName) {
+          console.log('✅ Found exact name match:', student.fullName);
+          return student;
+        }
+
+        // Track best partial match by highest similarity
+        if (containsPartialMatch(student.fullName, wantedName)) {
+          const similarity = calculatePartialSimilarity(student.fullName, wantedName);
+          if (similarity > 0.2) {
+            if (!bestPartial || similarity > bestPartial.similarity) {
+              bestPartial = { student, similarity };
+            }
+          }
+        }
+      }
     }
     
-    const csvText = await response.text();
-    console.log('CSV fetched successfully, size:', csvText.length);
-    
-    // Parse CSV using existing logic
-    const lines = csvText.trim().split('\n');
-    const headers = parseCSVLine(lines[0]).map(h => h.trim().replace(/"/g, ''));
-    
-    console.log('CSV Headers:', headers);
-    
-    for (let i = 1; i < lines.length; i++) {
-      const values = parseCSVLine(lines[i]);
-      const record: any = {};
-      headers.forEach((header, index) => {
-        record[header] = values[index] || "";
-      });
-
-      if (!record.usn || !record.name) continue;
-
-      const studentUSN = record.usn.trim();
-      const studentName = record.name.trim();
-
-      // Check for exact USN match
-      if (usn && normalizeUSN(studentUSN) === normalizeUSN(usn)) {
-        const student = parseStudentFromRecord(record);
-        console.log('✅ Found exact USN match:', student.fullName);
-        return student;
-      }
-
-      // Check for exact name match
-      if (fullName && normalizeName(studentName) === normalizeName(fullName)) {
-        const student = parseStudentFromRecord(record);
-        console.log('✅ Found exact name match:', student.fullName);
-        return student;
-      }
-
-      // Check for partial name match
-      if (fullName && containsPartialMatch(studentName, fullName)) {
-        const student = parseStudentFromRecord(record);
-        console.log('✅ Found partial name match:', student.fullName);
-        return student;
-      }
+    if (bestPartial) {
+      console.log('✅ Returning best partial name match:', bestPartial.student.fullName, 'similarity:', bestPartial.similarity.toFixed(2));
+      return bestPartial.student;
     }
-    
-    console.log('❌ No match found for:', { usn, fullName });
+
+    console.log('❌ No match found for:', { usn: wantedUSN, fullName: wantedName });
     return null;
     
   } catch (error) {
-    console.error('Error fetching CSV from Google Drive:', error);
+    console.error('Error in findStudentByUSNOrName:', error);
     throw error;
   }
 }
 
-// Keep your existing search functions but update them to use the same Google Drive source
+// REFACTORED: Use cached data loader
 export async function searchStudents(query: string, limit: number = 10): Promise<{
   exactMatch: Student | null
   results: SearchResult[]
@@ -318,48 +339,23 @@ export async function searchStudents(query: string, limit: number = 10): Promise
   console.log("🔍 Enhanced search for:", query)
 
   try {
-    // Use same Google Drive CSV source
-    const csvUrl = process.env.CSV_DATA_URL || 'https://drive.google.com/uc?export=download&id=1cSZ_S2jbviCcg72FBtIyRrIVJCmKpIQZ';
-    
-    const response = await fetch(csvUrl)
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`)
-    }
-
-    const csvText = await response.text()
-    
-    const lines = csvText.trim().split("\n")
-    const headers = parseCSVLine(lines[0]).map((h) => h.trim().replace(/"/g, ""))
-    
+    const students = await loadStudentsData()
     const normalizedQuery = query.trim()
 
     let exactMatch: Student | null = null
     const results: SearchResult[] = []
     const suggestions: SearchSuggestion[] = []
 
-    for (let i = 1; i < lines.length; i++) {
-      const values = parseCSVLine(lines[i])
-      const record: any = {}
-      headers.forEach((header, index) => {
-        record[header] = values[index] || ""
-      })
-
-      if (!record.usn || !record.name) continue
-
-      const studentUSN = record.usn.trim()
-      const studentName = record.name.trim()
-
+    for (const student of students) {
       // Check for exact USN match
-      if (normalizeUSN(studentUSN) === normalizeUSN(normalizedQuery)) {
-        const student = parseStudentFromRecord(record)
+      if (normalizeUSN(student.usn) === normalizeUSN(normalizedQuery)) {
         exactMatch = student
         console.log("✅ Exact USN match found:", student.fullName)
-        continue
+        break // Found the best possible match, no need to search further
       }
 
       // Check for exact name match
-      if (normalizeName(studentName) === normalizeName(normalizedQuery)) {
-        const student = parseStudentFromRecord(record)
+      if (normalizeName(student.fullName) === normalizeName(normalizedQuery)) {
         if (!exactMatch) {
           exactMatch = student
           console.log("✅ Exact name match found:", student.fullName)
@@ -368,11 +364,10 @@ export async function searchStudents(query: string, limit: number = 10): Promise
       }
 
       // Partial name matching with simplified similarity
-      const partialMatch = containsPartialMatch(studentName, normalizedQuery)
-      const similarity = calculatePartialSimilarity(studentName, normalizedQuery)
+      const partialMatch = containsPartialMatch(student.fullName, normalizedQuery)
+      const similarity = calculatePartialSimilarity(student.fullName, normalizedQuery)
 
       if (partialMatch && similarity > 0.2) {
-        const student = parseStudentFromRecord(record)
         results.push({
           student,
           matchType: "partial_name",
@@ -380,8 +375,8 @@ export async function searchStudents(query: string, limit: number = 10): Promise
         })
       } else if (similarity > 0.4) {
         suggestions.push({
-          usn: studentUSN,
-          name: studentName,
+          usn: student.usn,
+          name: student.fullName,
           similarity,
           matchType: "fuzzy_name"
         })
@@ -429,43 +424,6 @@ export async function getSearchSuggestions(query: string, limit: number = 5): Pr
     .slice(0, limit)
 }
 
-export async function loadStudentsData(): Promise<Student[]> {
-  try {
-    console.log("🔄 Loading students data...")
-    // Use same Google Drive CSV source
-    const csvUrl = process.env.CSV_DATA_URL || 'https://drive.google.com/uc?export=download&id=1cSZ_S2jbviCcg72FBtIyRrIVJCmKpIQZ';
-
-    const response = await fetch(csvUrl)
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`)
-    }
-
-    const csvText = await response.text()
-
-    const lines = csvText.trim().split("\n")
-    const headers = parseCSVLine(lines[0]).map((h) => h.trim().replace(/"/g, ""))
-    const students: Student[] = []
-
-    for (let i = 1; i < lines.length; i++) {
-      const values = parseCSVLine(lines[i])
-      const record: any = {}
-      headers.forEach((header, index) => {
-        record[header] = values[index] || ""
-      })
-
-      if (record.usn && record.name) {
-        const student = parseStudentFromRecord(record)
-        students.push(student)
-      }
-    }
-
-    console.log(`✅ Total students loaded: ${students.length}`)
-    return students
-  } catch (error) {
-    console.error("❌ Error in loadStudentsData:", error)
-    return []
-  }
-}
 
 export function loadStudentsFromText(csvText: string): Student[] {
   try {

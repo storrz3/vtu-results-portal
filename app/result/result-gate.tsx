@@ -17,12 +17,22 @@ type State =
   | { status: "success"; student: { usn: string; fullName: string } }
 
 export default function ResultGate({ searchParams }: Props) {
+  const { usn, fullName, format } = searchParams
   const [state, setState] = useState<State>({ status: "loading" })
 
   useEffect(() => {
+    // If neither identifier is present, don't call the API
+    if (!fullName && !usn) {
+      setState({
+        status: "error",
+        message:
+          "Please enter your Name or USN to view the result.",
+      })
+      return
+    }
     const params = new URLSearchParams()
-    if (searchParams.fullName) params.set("fullName", searchParams.fullName)
-    if (searchParams.usn) params.set("usn", searchParams.usn)
+    if (fullName) params.set("fullName", fullName)
+    if (usn) params.set("usn", usn)
     fetch(`/api/validate?${params.toString()}`, { cache: "no-store" })
       .then(async (res) => {
         const data = await res.json().catch(() => ({}))
@@ -39,7 +49,7 @@ export default function ResultGate({ searchParams }: Props) {
             "We could not validate your details. Please check your Name or USN and try again.",
         })
       })
-  }, [searchParams.fullName, searchParams.usn])
+  }, [fullName, usn])
 
   if (state.status === "loading") {
     return (
@@ -112,7 +122,7 @@ export default function ResultGate({ searchParams }: Props) {
   // Authorized
   return (
     <ResultContent
-      format={searchParams.format}
+      format={format}
       fullName={state.student.fullName}
       usn={state.student.usn}
     />
