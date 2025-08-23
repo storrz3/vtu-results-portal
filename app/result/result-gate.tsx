@@ -21,17 +21,8 @@ export default function ResultGate({ searchParams }: Props) {
 
   useEffect(() => {
     const params = new URLSearchParams()
-    
-    // Only add non-empty parameters
-    if (searchParams.fullName && searchParams.fullName.trim()) {
-      params.set("fullName", searchParams.fullName.trim())
-    }
-    if (searchParams.usn && searchParams.usn.trim()) {
-      params.set("usn", searchParams.usn.trim())
-    }
-    
-    console.log('API URL:', `/api/validate?${params.toString()}`) // Debug log
-    
+    if (searchParams.fullName) params.set("fullName", searchParams.fullName)
+    if (searchParams.usn) params.set("usn", searchParams.usn)
     fetch(`/api/validate?${params.toString()}`, { cache: "no-store" })
       .then(async (res) => {
         const data = await res.json().catch(() => ({}))
