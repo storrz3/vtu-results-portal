@@ -245,27 +245,75 @@ export async function loadStudentsData(): Promise<Student[]> {
   }
 
   try {
-    console.log("🔄 Loading students data from source...")
-    const csvUrl = process.env.CSV_DATA_URL || 'https://raw.githubusercontent.com/storrz3/VTU-results-portal/6f88a83b9f7fef0a2c61b81805575a111ad053e3/students.csv';
+    console.log("🔄 Loading students data from local file...")
+    console.log("🔄 Environment:", process.env.NODE_ENV)
+    console.log("🔄 Current working directory:", process.cwd())
+    
+    // In Next.js, we can't use fs directly in client components or API routes
+    // Instead, we'll use the fetch API to get the local CSV file
+    // The CSV file should be placed in the public directory for this to work
+    
+    let csvText: string
+    
+    try {
+      // First try to fetch from the public directory (works in both dev and production)
+      console.log("🔄 Attempting to fetch from /students.csv...")
+      const response = await fetch('/students.csv', { cache: 'no-store' })
+      console.log("🔄 Response status:", response.status)
+      console.log("🔄 Response headers:", Object.fromEntries(response.headers.entries()))
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch local CSV: ${response.status} ${response.statusText}`)
+      }
+      csvText = await response.text()
+      console.log("✅ Successfully loaded CSV from public directory")
+      console.log("📊 CSV content length:", csvText.length)
+      console.log("📊 CSV first 100 chars:", csvText.substring(0, 100))
+    } catch (localError) {
+      console.log("⚠️ Local file fetch failed:", localError)
+      console.log("⚠️ Trying GitHub fallback...")
+      
+      // Fallback to GitHub URL
+      const csvUrl = process.env.CSV_DATA_URL || 'https://raw.githubusercontent.com/storrz3/VTU-results-portal/6f88a83b9f7fef0a2c61b81805575a111ad053e3/students.csv';
+      console.log("🔄 Fetching from GitHub:", csvUrl)
+      
+      const response = await fetch(csvUrl, {
+        cache: 'no-store',
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (compatible; VTU-Results-Portal/1.0)',
+        },
+      });
+      
+      console.log("🔄 GitHub response status:", response.status)
+      
+      if (!response.ok) {
+        throw new Error(`GitHub fetch failed: HTTP ${response.status}: ${response.statusText}`)
+      }
 
-    const response = await fetch(csvUrl, {
-      cache: 'no-store',
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (compatible; VTU-Results-Portal/1.0)',
-      },
-    });
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+      csvText = await response.text()
+      console.log("✅ Successfully loaded CSV from GitHub fallback")
+      console.log("📊 CSV content length:", csvText.length)
     }
 
-    const csvText = await response.text()
+    console.log("🔄 Parsing CSV data...")
     const students = loadStudentsFromText(csvText)
+    console.log("🔄 CSV parsing complete. Students count:", students.length)
+
+    if (students.length === 0) {
+      console.warn("⚠️ Warning: No students were parsed from CSV")
+      console.warn("⚠️ CSV content preview:", csvText.substring(0, 500))
+    }
 
     console.log(`✅ Total students loaded and cached: ${students.length}`)
     studentsCache = students // Cache the data
     return students
   } catch (error) {
     console.error("❌ Error in loadStudentsData:", error)
+    console.error("❌ Error details:", {
+      name: error instanceof Error ? error.name : 'Unknown',
+      message: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : 'No stack trace'
+    })
     return []
   }
 }

@@ -10,10 +10,17 @@ export async function GET(req: NextRequest) {
   console.log('Received params:', { usn, fullName })
   console.log('USN exists:', !!usn)
   console.log('FullName exists:', !!fullName)
+  console.log('Environment:', process.env.NODE_ENV)
+  console.log('Timestamp:', new Date().toISOString())
 
   try {
+    console.log('🔄 Starting student search...')
     const match = await findStudentByUSNOrName(usn || undefined, fullName || undefined)
     console.log('Database search result:', match ? 'FOUND' : 'NOT_FOUND')
+    
+    if (match) {
+      console.log('✅ Found student:', { usn: match.usn, name: match.fullName })
+    }
 
     if (!match) {
       console.log('Returning 404 - no match found')
@@ -33,6 +40,7 @@ export async function GET(req: NextRequest) {
     })
   } catch (error) {
     console.error("API Validation error:", error)
+    console.error("Error stack:", error instanceof Error ? error.stack : 'No stack trace')
     return new Response(
       JSON.stringify({
         ok: false,
