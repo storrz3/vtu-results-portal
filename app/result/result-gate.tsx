@@ -33,20 +33,30 @@ export default function ResultGate({ searchParams }: Props) {
     const params = new URLSearchParams()
     if (fullName) params.set("fullName", fullName)
     if (usn) params.set("usn", usn)
-    fetch(`/api/validate?${params.toString()}`, { cache: "no-store" })
+    fetch(`/api/validate?${params.toString()}`, { 
+      cache: "no-store",
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    })
       .then(async (res) => {
-        const data = await res.json().catch(() => ({}))
+        console.log('API Response status:', res.status, res.statusText)
+        const data = await res.json().catch((jsonError) => {
+          console.error('JSON parse error:', jsonError)
+          return {}
+        })
+        console.log('API Response data:', data)
+        
         if (!res.ok || !data?.ok) {
-          throw new Error(data?.error || "Validation failed.")
+          throw new Error(data?.error || `Server error: ${res.status} ${res.statusText}`)
         }
         setState({ status: "success", student: data.student })
       })
       .catch((err) => {
+        console.error('Frontend API call error:', err)
         setState({
           status: "error",
-          message:
-            err?.message ||
-            "We could not validate your details. Please check your Name or USN and try again.",
+          message: err?.message || "Network error - please check your connection and try again.",
         })
       })
   }, [fullName, usn])
