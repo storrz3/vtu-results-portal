@@ -1,3 +1,5 @@
+import { ALL_STUDENTS_DATA } from './all-students-generated'
+
 export type Student = {
   usn: string
   fullName: string
@@ -237,23 +239,6 @@ function parseStudentFromRecord(record: any): Student {
 // In-memory cache for student data to avoid re-fetching on every request.
 let studentsCache: Student[] | null = null
 
-// CSV data as a constant string - this will be bundled with the app
-// This contains the first few lines of your real data as a fallback
-const CSV_DATA = `usn,name,total_marks,percentage,sgpa,section,pdf_drive_link,class_rank,college_rank,subject1,subject2,subject3,subject4,subject5,subject6,subject7,subject8
-3VC24CS096,PAVITHRA R,689,86.1,9.35,A SEC,https://drive.google.com/file/d/1fFqKFVsw3GL7fl1Iwd_jhmkoI8wdu3On/view?usp=sharing,1,4,BMATS201:87 (P),BCHES202:91 (P),BCEDK203:96 (P),BPWSK206:82 (P),BICOK207:81 (P),BIDTK258:82 (P),BESCK204C:88 (P),BPLCK205D:82 (P)
-3VC24CS109,REDDYMASI RAKSHITHA,690,86.2,9.3,A SEC,https://drive.google.com/file/d/1TYJEGXnkfi1hJMxi3XZAfBREqQOe-E2U/view?usp=sharing,2,7,BMATS201:94 (P),BCHES202:85 (P),BCEDK203:89 (P),BPWSK206:82 (P),BICOK207:77 (P),BIDTK258:85 (P),BESCK204C:94 (P),BPLCK205D:84 (P)
-3VC24CS083,MEHREEN ZAARA,673,84.1,9.25,A SEC,https://drive.google.com/file/d/12rVBbrqXWX5nKkYPap8iQKvxZgToBb35/view?usp=sharing,3,10,BMATS201:82 (P),BCHES202:92 (P),BCEDK203:93 (P),BPWSK206:82 (P),BICOK207:73 (P),BIDTK258:79 (P),BESCK204C:88 (P),BPLCK205D:84 (P)
-3VC24CS080,MEENA KUMARI,654,81.8,9.2,A SEC,https://drive.google.com/file/d/13ZKZ5Eyh8O7lYSM_Xa-K733gTlgxqxGQ/view?usp=sharing,4,12,BMATS201:96 (P),BCHES202:87 (P),BCEDK203:91 (P),BPWSK206:74 (P),BICOK207:72 (P),BIDTK258:74 (P),BESCK204C:80 (P),BPLCK205D:80 (P)
-3VC24CS107,RANJITHA M B,659,82.4,9.2,A SEC,https://drive.google.com/file/d/1BGpAwO62Td4o03PO3WTTo03mURSym1tr/view?usp=sharing,4,12,BMATS201:89 (P),BCHES202:96 (P),BCEDK203:94 (P),BPWSK206:62 (F),BICOK207:71 (P),BIDTK258:81 (P),BESCK204C:90 (P),BPLCK205D:76 (P)
-3VC24CS112,S N DIVYASHRI,669,83.6,9.2,A SEC,https://drive.google.com/file/d/1vZ7NeTuMuVH-RMAWKV55fDtlrOPysRxr/view?usp=sharing,4,12,BMATS201:86 (P),BCHES202:96 (P),BCEDK203:96 (P),BPWSK206:69 (P),BICOK207:73 (P),BIDTK258:82 (P),BESCK204C:84 (P),BPLCK205D:83 (P)
-3VC24CS038,EESHA DEVI B,667,83.4,9.15,A SEC,https://drive.google.com/file/d/1UuycKlguHaUuLy4hoICpL9n1IxFQOQ5k/view?usp=sharing,7,17,BMATS201:96 (P),BCHES202:92 (P),BCEDK203:87 (P),BPWSK206:75 (P),BICOK207:78 (P),BIDTK258:80 (P),BESCK204C:80 (P),BPLCK205D:79 (P)
-3VC24CS099,PRAVYKYA K,659,82.4,9.05,A SEC,https://drive.google.com/file/d/1amNrWbEUAM2I8gJf7Q2f4hERbf6nmezx/view?usp=sharing,8,21,BMATS201:88 (P),BCHES202:93 (P),BCEDK203:96 (P),BPWSK206:75 (P),BICOK207:70 (P),BIDTK258:76 (P),BESCK204C:83 (P),BPLCK205D:78 (P)
-3VC24CS128,SNEHA K,661,82.6,9.05,A SEC,https://drive.google.com/file/d/1KKb9HTr9ge8oNUZWtmoB3BW7fVuld0K0/view?usp=sharing,8,21,BMATS201:79 (P),BCHES202:92 (P),BCEDK203:92 (P),BPWSK206:77 (P),BICOK207:70 (P),BIDTK258:82 (P),BESCK204C:85 (P),BPLCK205D:84 (P)
-3VC24CS028,C THEJASWINI,660,82.5,9.0,A SEC,https://drive.google.com/file/d/1aZnGvZoUhbmFqUVO6VgRwKwbWx7-H2j3/view?usp=sharing,10,25,BMATS201:77 (P),BCHES202:92 (P),BCEDK203:91 (P),BPWSK206:78 (P),BICOK207:68 (P),BIDTK258:81 (P),BESCK204C:86 (P),BPLCK205D:87 (P)
-3VC24CS053,K KEDARANATHA,682,85.2,9.45,B SEC,https://drive.google.com/file/d/1cImWG9GQ3c88MpOXy6W_tMukjuiPBaJy/view?usp=sharing,1,2,BMATS201:93 (P),BCHES202:90 (P),BCEDK203:99 (P),BPWSK206:83 (P),BICOK207:70 (P),BIDTK258:71 (P),BESCK204C:89 (P),BPLCK205D:87 (P)
-3VC24CS103,RADHIKA S KALAKAPUR,643,80.4,9.1,B SEC,https://drive.google.com/file/d/1Qc_KlwO4NR8GiObMMp22EHqHDLAxwa_o/view?usp=sharing,2,18,BMATS201:80 (P),BCHES202:84 (P),BCEDK203:97 (P),BPWSK206:74 (P),BICOK207:63 (P),BIDTK258:73 (P),BESCK204C:91 (P),BPLCK205D:81 (P)
-3VC24CS078,MANYA B S,651,81.4,9.05,B SEC,https://drive.google.com/file/d/1NEDAmOkTcZV1Jroy76-RJvjSh_4thXxI/view?usp=sharing,3,21,BMATS201:90 (P),BCHES202:85 (P),BCEDK203:96 (P),BPWSK206:74 (P),BICOK207:62 (P),BIDTK258:81 (P),BESCK204C:87 (P),BPLCK205D:76 (P)`
-
 // Centralized data loader with caching
 export async function loadStudentsData(): Promise<Student[]> {
   if (studentsCache) {
@@ -262,10 +247,10 @@ export async function loadStudentsData(): Promise<Student[]> {
   }
 
   try {
-    console.log("🔄 Loading students data from bundled CSV...")
+    console.log("🔄 Loading students data from comprehensive database...")
     
-    // Use the bundled CSV data with existing CSV parsing functionality
-    const students = loadStudentsFromText(CSV_DATA)
+    // Convert the imported data to Student objects using existing parsing
+    const students = ALL_STUDENTS_DATA.map(record => parseStudentFromRecord(record))
 
     console.log(`✅ Total students loaded and cached: ${students.length}`)
     studentsCache = students // Cache the data
