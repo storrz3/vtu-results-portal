@@ -34,38 +34,32 @@ export type SearchSuggestion = {
 
 // Subject code to name mapping
 const SUBJECT_NAMES: Record<string, string> = {
-BMATS201: "MATHEMATICS-II FOR CSE STREAM",
-BMATE201: "MATHEMATICS-II FOR EES",
-BMATM201: "MATHEMATICS-II FOR MECHANICAL ENGG STREAM",
-BMATC201: "MATHEMATICS-II FOR CIVIL ENGG STREAM",
-
-BCHES202: "APPLIED CHEMISTRY FOR CSE STREAM",
-BPHYS202: "APPLIED PHYSICS FOR CSE STREAM",
-BPHYE202: "APPLIED PHYSICS FOR EES",
-BPHYM202: "APPLIED PHYSICS FOR ME STREAMS",
-BPHYC202: "APPLIED PHYSICS FOR CIVIL ENGG STREAM",
-
-BCEDK203: "COMPUTER-AIDED ENGINEERING DRAWING",
-BBEE203: "BASIC ELECTRONICS",
-BEEE203: "ELEMENT OF ELECTRICAL ENGINEERING",
-BEMEM203: "ELEMENTS OF MECHANICAL ENGINEERING",
-BCIVC203: "ENGINEERING MECHANICS",
-BPOPS203: "PRINCIPLES OF PROGRAMMING USING C",
-
-BPWSK206: "PROFESSIONAL WRITING SKILLS IN ENGLISH",
-BICOK207: "INDIAN CONSTITUTION",
-BKSKK207: "SAMSKRUTIKA KANNADA",
-BKBKK207:  "BALAKE KANNADA",
-BIDTK258: "INNOVATION AND DESIGN THINKING",
-BSFHK258: "SCIENTIFIC FOUNDATIONS OF HEALTH",
-
-BESCK204B: "INTRODUCTION TO ELECTRICAL ENGINEERING",
-BESCK204C: "INTRODUCTION TO ELECTRONICS COMMUNICATION",
-
-BPLCK205A: "INTRODUCTION TO WEB PROGRAMMING",
-BPLCK205B: "INTRODUCTION TO PYTHON PROGRAMMING",
-BPLCK205D: "INTRODUCTION TO C++ PROGRAMMING",
-
+  BMATS201: "MATHEMATICS-II FOR CSE STREAM",
+  BMATE201: "MATHEMATICS-II FOR EES",
+  BMATM201: "MATHEMATICS-II FOR MECHANICAL ENGG STREAM",
+  BMATC201: "MATHEMATICS-II FOR CIVIL ENGG STREAM",
+  BCHES202: "APPLIED CHEMISTRY FOR CSE STREAM",
+  BPHYS202: "APPLIED PHYSICS FOR CSE STREAM",
+  BPHYE202: "APPLIED PHYSICS FOR EES",
+  BPHYM202: "APPLIED PHYSICS FOR ME STREAMS",
+  BPHYC202: "APPLIED PHYSICS FOR CIVIL ENGG STREAM",
+  BCEDK203: "COMPUTER-AIDED ENGINEERING DRAWING",
+  BBEE203: "BASIC ELECTRONICS",
+  BEEE203: "ELEMENT OF ELECTRICAL ENGINEERING",
+  BEMEM203: "ELEMENTS OF MECHANICAL ENGINEERING",
+  BCIVC203: "ENGINEERING MECHANICS",
+  BPOPS203: "PRINCIPLES OF PROGRAMMING USING C",
+  BPWSK206: "PROFESSIONAL WRITING SKILLS IN ENGLISH",
+  BICOK207: "INDIAN CONSTITUTION",
+  BKSKK207: "SAMSKRUTIKA KANNADA",
+  BKBKK207: "BALAKE KANNADA",
+  BIDTK258: "INNOVATION AND DESIGN THINKING",
+  BSFHK258: "SCIENTIFIC FOUNDATIONS OF HEALTH",
+  BESCK204B: "INTRODUCTION TO ELECTRICAL ENGINEERING",
+  BESCK204C: "INTRODUCTION TO ELECTRONICS COMMUNICATION",
+  BPLCK205A: "INTRODUCTION TO WEB PROGRAMMING",
+  BPLCK205B: "INTRODUCTION TO PYTHON PROGRAMMING",
+  BPLCK205D: "INTRODUCTION TO C++ PROGRAMMING",
 }
 
 // SIMPLIFIED: String similarity functions (avoiding complex matrix operations)
@@ -163,9 +157,9 @@ function parseSubjectString(subjectStr: string): Subject | null {
   const match = trimmed.match(regex)
 
   if (match) {
-    const code = match[1]
-    const marksStr = match[2]
-    const statusChar = match[3]
+    const code = match[10]
+    const marksStr = match[11]
+    const statusChar = match[12]
 
     const marks = parseInt(marksStr, 10)
     if (isNaN(marks)) {
@@ -240,6 +234,78 @@ function parseStudentFromRecord(record: any): Student {
   }
 }
 
+// ✅ FIXED: Single unified function using Google Drive CSV
+export async function findStudentByUSNOrName(usn?: string, fullName?: string): Promise<Student | null> {
+  try {
+    // Use Google Drive CSV instead of Vercel Blob
+    const CSV_URL = process.env.CSV_DATA_URL || 'https://drive.google.com/uc?export=download&id=1cSZ_S2jbviCcg72FBtIyRrIVJCmKpIQZ';
+    
+    console.log('Fetching CSV from Google Drive...');
+    
+    const response = await fetch(CSV_URL, {
+      cache: 'no-store',
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (compatible; VTU-Results-Portal/1.0)',
+      },
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Failed to fetch CSV: ${response.status} ${response.statusText}`);
+    }
+    
+    const csvText = await response.text();
+    console.log('CSV fetched successfully, size:', csvText.length);
+    
+    // Parse CSV using existing logic
+    const lines = csvText.trim().split('\n');
+    const headers = parseCSVLine(lines[0]).map(h => h.trim().replace(/"/g, ''));
+    
+    console.log('CSV Headers:', headers);
+    
+    for (let i = 1; i < lines.length; i++) {
+      const values = parseCSVLine(lines[i]);
+      const record: any = {};
+      headers.forEach((header, index) => {
+        record[header] = values[index] || "";
+      });
+
+      if (!record.usn || !record.name) continue;
+
+      const studentUSN = record.usn.trim();
+      const studentName = record.name.trim();
+
+      // Check for exact USN match
+      if (usn && normalizeUSN(studentUSN) === normalizeUSN(usn)) {
+        const student = parseStudentFromRecord(record);
+        console.log('✅ Found exact USN match:', student.fullName);
+        return student;
+      }
+
+      // Check for exact name match
+      if (fullName && normalizeName(studentName) === normalizeName(fullName)) {
+        const student = parseStudentFromRecord(record);
+        console.log('✅ Found exact name match:', student.fullName);
+        return student;
+      }
+
+      // Check for partial name match
+      if (fullName && containsPartialMatch(studentName, fullName)) {
+        const student = parseStudentFromRecord(record);
+        console.log('✅ Found partial name match:', student.fullName);
+        return student;
+      }
+    }
+    
+    console.log('❌ No match found for:', { usn, fullName });
+    return null;
+    
+  } catch (error) {
+    console.error('Error fetching CSV from Google Drive:', error);
+    throw error;
+  }
+}
+
+// Keep your existing search functions but update them to use the same Google Drive source
 export async function searchStudents(query: string, limit: number = 10): Promise<{
   exactMatch: Student | null
   results: SearchResult[]
@@ -252,7 +318,8 @@ export async function searchStudents(query: string, limit: number = 10): Promise
   console.log("🔍 Enhanced search for:", query)
 
   try {
-    const csvUrl = "https://7uhlo80bojw9rwm9.public.blob.vercel-storage.com/combined_vtu_results_cleaned.csv"
+    // Use same Google Drive CSV source
+    const csvUrl = process.env.CSV_DATA_URL || 'https://drive.google.com/uc?export=download&id=1cSZ_S2jbviCcg72FBtIyRrIVJCmKpIQZ';
     
     const response = await fetch(csvUrl)
     if (!response.ok) {
@@ -260,10 +327,6 @@ export async function searchStudents(query: string, limit: number = 10): Promise
     }
 
     const csvText = await response.text()
-    
-    if (csvText.includes('<!DOCTYPE html>') || csvText.includes('<html')) {
-      throw new Error("Received HTML instead of CSV. Check the URL.")
-    }
     
     const lines = csvText.trim().split("\n")
     const headers = parseCSVLine(lines[0]).map((h) => h.trim().replace(/"/g, ""))
@@ -366,69 +429,11 @@ export async function getSearchSuggestions(query: string, limit: number = 5): Pr
     .slice(0, limit)
 }
 
-// data/students.ts (or wherever your function is located)
-
-export async function findStudentByUSNOrName(usn?: string, fullName?: string) {
-  try {
-    // Use Google Drive CSV instead of Vercel Blob
-    const CSV_URL = process.env.CSV_DATA_URL || 'https://drive.google.com/uc?export=download&id=1cSZ_S2jbviCcg72FBtIyRrIVJCmKpIQZ';
-    
-    console.log('Fetching CSV from Google Drive...');
-    
-    const response = await fetch(CSV_URL, {
-      cache: 'no-store',
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (compatible; VTU-Results-Portal/1.0)',
-      },
-    });
-    
-    if (!response.ok) {
-      throw new Error(`Failed to fetch CSV: ${response.status}`);
-    }
-    
-    const csvText = await response.text();
-    console.log('CSV fetched successfully, size:', csvText.length);
-    
-    // Parse CSV manually (adjust based on your CSV structure)
-    const lines = csvText.split('\n');
-    const headers = lines[0].split(',').map(h => h.trim());
-    
-    const students = lines.slice(1).map(line => {
-      const values = line.split(',');
-      const student: any = {};
-      headers.forEach((header, index) => {
-        student[header] = values[index]?.trim();
-      });
-      return student;
-    }).filter(student => student.usn && student.usn.trim()); // Remove empty rows
-    
-    console.log('Students parsed:', students.length);
-    
-    // Search logic (adjust field names to match your CSV)
-    const match = students.find((student: any) => {
-      if (usn && student.usn?.toLowerCase() === usn.toLowerCase()) {
-        return true;
-      }
-      if (fullName && student.fullName?.toLowerCase().includes(fullName.toLowerCase())) {
-        return true;
-      }
-      return false;
-    });
-    
-    console.log('Search result:', match ? 'FOUND' : 'NOT_FOUND');
-    return match;
-    
-  } catch (error) {
-    console.error('Error fetching CSV from Google Drive:', error);
-    throw error;
-  }
-}
-
-
 export async function loadStudentsData(): Promise<Student[]> {
   try {
     console.log("🔄 Loading students data...")
-    const csvUrl = "https://7uhlo80bojw9rwm9.public.blob.vercel-storage.com/combined_vtu_results_cleaned.csv"
+    // Use same Google Drive CSV source
+    const csvUrl = process.env.CSV_DATA_URL || 'https://drive.google.com/uc?export=download&id=1cSZ_S2jbviCcg72FBtIyRrIVJCmKpIQZ';
 
     const response = await fetch(csvUrl)
     if (!response.ok) {
@@ -436,10 +441,6 @@ export async function loadStudentsData(): Promise<Student[]> {
     }
 
     const csvText = await response.text()
-
-    if (csvText.includes('<!DOCTYPE html>') || csvText.includes('<html')) {
-      throw new Error("Received HTML instead of CSV. Check the URL.")
-    }
 
     const lines = csvText.trim().split("\n")
     const headers = parseCSVLine(lines[0]).map((h) => h.trim().replace(/"/g, ""))
